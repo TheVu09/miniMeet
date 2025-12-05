@@ -1,4 +1,5 @@
 const Notification = require('../models/Notification');
+const { checkHomeworkDeadlines } = require('../utils/homeworkNotificationCron');
 
 const getNotifications = async (req, res) => {
   try {
@@ -6,9 +7,15 @@ const getNotifications = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(50);
 
-    res.json({ notifications });
+    res.render('notification/list', {
+      notifications,
+      user: req.user
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).render('error', {
+      error: error.message,
+      user: req.user
+    });
   }
 };
 
@@ -37,8 +44,27 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
+const testCron = async (req, res) => {
+  try {
+    await checkHomeworkDeadlines();
+
+    const notifications = await Notification.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    res.json({
+      success: true,
+      message: 'Cron job executed manually',
+      notifications
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getNotifications,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  testCron
 }

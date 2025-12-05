@@ -261,6 +261,116 @@
     cursor: crosshair;
 }
 
+/* Caption panel styles */
+#caption-panel {
+    background: white;
+}
+
+.caption-history-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.caption-history-item:last-child {
+    border-bottom: none;
+}
+
+.caption-history-item small {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.caption-history-item .caption-text {
+    margin-top: 4px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #212529;
+}
+
+.caption-lang-option.active {
+    background-color: #0d6efd;
+    color: white;
+}
+
+#live-caption-text {
+    font-style: italic;
+    color: #0d6efd !important;
+}
+
+#live-caption-text:empty::before {
+    content: "Đang chờ...";
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Caption alert */
+#caption-alert {
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Virtual Background Styles */
+.bg-image-option {
+    transition: all 0.2s ease;
+    border: 2px solid #dee2e6 !important;
+}
+
+.bg-image-option:hover {
+    border-color: #0d6efd !important;
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+.bg-image-option.selected {
+    border-color: #0d6efd !important;
+    border-width: 3px !important;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+#background-alert {
+    animation: fadeIn 0.3s;
+}
+
+/* Participants Panel Styles */
+.participant-item {
+    transition: background-color 0.2s;
+}
+
+.participant-item:hover {
+    background-color: #f8f9fa;
+}
+
+.participant-item .avatar-circle {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: bold;
+}
+
+.participant-item .btn-group {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.participant-item:hover .btn-group {
+    opacity: 1;
+}
+
 /* small screens adjustments */
 @media (max-width: 900px) {
     #sidebar {

@@ -274,6 +274,14 @@ const endMeeting = async (req, res) => {
       await att.save();
     }
 
+    // Emit socket event to kick everyone out
+    const io = req.app.get('io');
+    if (io) {
+      io.to(meeting._id.toString()).emit('meeting-ended', {
+        message: 'The meeting has been ended by the host.'
+      });
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

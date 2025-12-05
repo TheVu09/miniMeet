@@ -43,12 +43,19 @@ const qaRoutes = require('./src/routes/qaRoutes');
 // Import socket handler
 const socketHandler = require('./src/utils/socketHandler');
 
+// Import homework notification cron
+const { startHomeworkNotificationCron } = require('./src/utils/homeworkNotificationCron');
+
 // Database connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/minimeet', {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 })
-    .then(() => console.log('MongoDB connected'))
+    .then(() => {
+        console.log('MongoDB connected');
+        // Khởi động cron job cho thông báo homework deadline
+        startHomeworkNotificationCron();
+    })
     .catch(err => console.error('MongoDB connection error:', err));
 
 // Cấu hình middleware

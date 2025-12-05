@@ -117,15 +117,91 @@ const submitQuiz = async (req, res) => {
 
     const { answers, suspiciousActivities } = req.body;
 
+    console.log('=== QUIZ SUBMISSION DEBUG ===');
+    console.log('Quiz ID:', req.params.id);
+    console.log('Total questions:', quiz.questions.length);
+    console.log('Answers received:', JSON.stringify(answers, null, 2));
+
     let score = 0;
     let totalPoints = 0;
-    answers.forEach((answer, index) => {
-      const question = quiz.questions[index];
+    const debugInfo = [];
+
+    answers.forEach((answer) => {
+      // Tìm question theo questionId thay vì dùng index
+      const question = quiz.questions.find(q => q._id.toString() === answer.questionId);
+      if (!question) {
+        console.log('❌ Question not found for ID:', answer.questionId);
+        debugInfo.push({ error: 'Question not found', questionId: answer.questionId });
+        return;
+      }
+
       totalPoints += question.points;
-      if (JSON.stringify(answer.answer) === JSON.stringify(question.correctAnswer)) {
+
+      console.log('\n--- Question:', question.question);
+      console.log('Type:', question.type);
+      console.log('Student answer:', answer.answer, '(type:', typeof answer.answer + ')');
+      console.log('Correct answer:', question.correctAnswer, '(type:', typeof question.correctAnswer + ')');
+
+      if (question.type === 'multiple-choice' && question.options) {
+        console.log('Options:', question.options);
+      }
+
+      let isCorrect = false;
+
+      if (question.type === 'multiple-choice') {
+        // Với multiple choice, answer là index của option được chọn
+        const studentAnswerIndex = parseInt(answer.answer);
+
+        // Kiểm tra nếu correctAnswer là số (index) hay text (option value)
+        const correctAnswerNum = parseInt(question.correctAnswer);
+
+        if (!isNaN(correctAnswerNum)) {
+          // correctAnswer là index
+          console.log('Multiple choice (index) - Student:', studentAnswerIndex, 'Correct:', correctAnswerNum);
+          isCorrect = studentAnswerIndex === correctAnswerNum;
+        } else {
+          // correctAnswer là text - tìm index của text đó trong options
+          const correctIndex = question.options.indexOf(question.correctAnswer);
+          console.log('Multiple choice (text) - Student index:', studentAnswerIndex, 'Correct text:', question.correctAnswer, 'Correct index:', correctIndex);
+          isCorrect = studentAnswerIndex === correctIndex;
+        }
+      } else if (question.type === 'true-false') {
+        // Với true/false, so sánh trực tiếp
+        const studentAnswer = String(answer.answer).toLowerCase();
+        const correctAnswer = String(question.correctAnswer).toLowerCase();
+
+        console.log('True/False - Student:', studentAnswer, 'Correct:', correctAnswer);
+
+        isCorrect = studentAnswer === correctAnswer;
+      } else {
+        // Short answer - so sánh string (case insensitive)
+        const studentAnswer = String(answer.answer).trim().toLowerCase();
+        const correctAnswer = String(question.correctAnswer).trim().toLowerCase();
+
+        console.log('Short answer - Student:', studentAnswer, 'Correct:', correctAnswer);
+
+        isCorrect = studentAnswer === correctAnswer;
+      }
+
+      if (isCorrect) {
         score += question.points;
+        console.log('✅ CORRECT! Points:', question.points, 'Total score:', score);
+        debugInfo.push({ question: question.question, correct: true, points: question.points });
+      } else {
+        console.log('❌ WRONG!');
+        debugInfo.push({
+          question: question.question,
+          correct: false,
+          studentAnswer: answer.answer,
+          correctAnswer: question.correctAnswer
+        });
       }
     });
+
+    console.log('\n=== FINAL RESULTS ===');
+    console.log('Score:', score, '/', totalPoints);
+    console.log('Debug info:', JSON.stringify(debugInfo, null, 2));
+    console.log('========================\n');
 
     quiz.attempts.push({
       student: req.user._id,

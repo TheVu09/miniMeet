@@ -169,6 +169,13 @@ async function showPreviewModal() {
         // Initialize meeting with selected settings and join
         await initializeMedia();
         joinMeeting();
+
+        // Initialize caption controls after meeting container is shown
+        if (typeof window.initializeCaptionControls === 'function') {
+            setTimeout(() => {
+                window.initializeCaptionControls();
+            }, 500);
+        }
     });
 
     modal.show();
@@ -393,7 +400,7 @@ async function handleOffer(offer, from, targetUserId) {
     let pc = peerConnections.get(targetUserId);
     if (!pc) {
         console.log('Creating new peer connection for incoming offer from:', targetUserId);
-        pc = createPeerConnection(targetUserId, true); // true = isIncomingOffer
+        pc = await createPeerConnection(targetUserId, true); // true = isIncomingOffer
     }
 
     try {
@@ -412,7 +419,7 @@ async function handleOffer(offer, from, targetUserId) {
         socket.emit('answer', { meetingId, answer, targetId: targetSocketId });
         console.log('Sent answer to socketId:', targetSocketId, 'userId:', targetUserId);
     } catch (error) {
-        console.error('Error handling offer:', error);
+        console.error('[HandleOffer] Error handling offer:', error);
     }
 }
 
@@ -553,6 +560,92 @@ socket.on('user-muted', ({ userId: mutedUserId }) => {
         muteLocalAudio();
         setMeetingAlert('muted', 'Host muted your microphone');
     }
+});
+
+socket.on('co-host-added', ({ userId: coHostUserId }) => {
+    if (coHostUserId === userId) {
+        // Update local isCoHost flag
+        window.isCoHost = true;
+        setMeetingAlert('co-host', 'You are now a co-host! You can now mute participants and manage settings.');
+    }
+    // Update participants list to show new co-host badge
+    updateParticipantsList();
+});
+
+socket.on('co-host-removed', ({ userId: coHostUserId }) => {
+    if (coHostUserId === userId) {
+        // Update local isCoHost flag
+        window.isCoHost = false;
+        setMeetingAlert('co-host', 'You are no longer a co-host.');
+    }
+    // Update participants list
+    updateParticipantsList();
+});
+
+socket.on('participant-removed', ({ userId: removedUserId }) => {
+    if (removedUserId === userId) {
+        // Current user was removed
+        alert('You have been removed from the meeting by the host.');
+        // Clean up and redirect
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        window.location.href = '/classroom/list';
+    } else {
+        // Another participant was removed, update list
+        updateParticipantsList();
+    }
+});
+
+socket.on('meeting-ended', ({ message }) => {
+    // Meeting was ended by host - show modal
+    const modalHtml = `
+        <div class="modal fade" id="meetingEndedModal" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            Meeting Ended
+                        </h5>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <i class="bi bi-box-arrow-right" style="font-size: 3rem; color: #dc3545;"></i>
+                        <p class="mt-3 mb-0">${message || 'The meeting has been ended by the host.'}</p>
+                        <p class="text-muted mt-2">You will be redirected shortly...</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" onclick="window.location.href='/meeting'">
+                            Go to Meetings List
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('meetingEndedModal'));
+    modal.show();
+
+    // Clean up resources
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+
+    // Close all peer connections
+    peerConnections.forEach((pc, peerId) => {
+        pc.close();
+    });
+    peerConnections.clear();
+
+    // Disconnect socket
+    socket.disconnect();
+
+    // Auto redirect after 3 seconds
+    setTimeout(() => {
+        window.location.href = '/meeting';
+    }, 3000);
 });
 
 socket.on('chat-disabled', () => {
@@ -1802,15 +1895,32 @@ function initializeEventListeners() {
                 // For now, show current user and remote users
                 const participants = [userId, ...Array.from(remoteStreams.keys())];
                 participantsList.innerHTML = participants.map(pId => `
-                <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
-                    <div>
-                        <strong>${pId === userId ? 'You' : 'User ' + pId}</strong>
-                        ${pId === userId ? '<span class="badge bg-primary ms-2">You</span>' : ''}
+                <div class="participant-item d-flex justify-content-between align-items-center p-2 border-bottom">
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <div class="avatar-circle me-2" style="width: 32px; height: 32px; font-size: 14px;">
+                            ${pId === userId ? 'Y' : 'U'}
+                        </div>
+                        <div>
+                            <strong>${pId === userId ? 'You' : 'User ' + pId.substring(0, 8)}</strong>
+                            ${pId === userId ? '<span class="badge bg-primary ms-2">You</span>' : ''}
+                            ${isHost && pId === userId ? '<span class="badge bg-danger ms-1">Host</span>' : ''}
+                            ${isCoHost && pId === userId ? '<span class="badge bg-warning ms-1">Co-Host</span>' : ''}
+                        </div>
                     </div>
                     ${(isHost || isCoHost) && pId !== userId ? `
-                        <button class="btn btn-sm btn-outline-danger" onclick="muteUser('${pId}')">
-                            <i class="bi bi-mic-mute"></i>
-                        </button>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-secondary" onclick="muteParticipant('${pId}')" title="Mute">
+                                <i class="bi bi-mic-mute"></i>
+                            </button>
+                            ${isHost ? `
+                                <button class="btn btn-outline-primary" onclick="toggleCoHost('${pId}')" title="Make Co-Host">
+                                    <i class="bi bi-star"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="removeParticipant('${pId}')" title="Remove">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            ` : ''}
+                        </div>
                     ` : ''}
                 </div>
             `).join('');
@@ -1820,8 +1930,46 @@ function initializeEventListeners() {
             });
     }
 
-    function muteUser(targetUserId) {
+    // Mute participant
+    window.muteParticipant = function (targetUserId) {
+        console.log('[Meeting] Muting participant:', targetUserId);
         socket.emit('mute-user', { meetingId, targetUserId });
+        alert(`Mute request sent to participant ${targetUserId.substring(0, 8)}`);
+    };
+
+    // Toggle co-host status
+    window.toggleCoHost = function (targetUserId) {
+        console.log('[Meeting] Toggling co-host for:', targetUserId);
+        if (!isHost) {
+            alert('Only host can assign co-host');
+            return;
+        }
+
+        if (confirm(`Make this user a co-host? Co-hosts can mute participants and manage meeting settings.`)) {
+            socket.emit('set-co-host', { meetingId, targetUserId });
+            alert(`Co-host status updated for ${targetUserId.substring(0, 8)}`);
+            // Update participants list
+            setTimeout(updateParticipantsList, 500);
+        }
+    };
+
+    // Remove participant
+    window.removeParticipant = function (targetUserId) {
+        console.log('[Meeting] Removing participant:', targetUserId);
+        if (!isHost) {
+            alert('Only host can remove participants');
+            return;
+        }
+
+        if (confirm(`Remove this participant from the meeting?`)) {
+            socket.emit('remove-participant', { meetingId, targetUserId });
+            alert(`Participant ${targetUserId.substring(0, 8)} has been removed`);
+        }
+    };
+
+    function muteUser(targetUserId) {
+        // Deprecated - use muteParticipant instead
+        muteParticipant(targetUserId);
     }
 
     // Settings panel
@@ -1938,6 +2086,196 @@ function initializeEventListeners() {
 
     // Reactions
     document.getElementById('show-reactions')?.addEventListener('click', showReactionsMenu);
+
+    // Caption button handled by captions.js via initializeCaptionControls()
+
+    // Virtual Background button
+    document.getElementById('toggle-background')?.addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        const backgroundPanel = document.getElementById('background-panel');
+        const chatPanel = document.getElementById('chat-panel');
+        const participantsPanel = document.getElementById('participants-panel');
+        const captionPanel = document.getElementById('caption-panel');
+        const qaPanel = document.getElementById('qa-panel');
+
+        if (sidebar.style.display === 'none') {
+            sidebar.style.display = 'block';
+            backgroundPanel.classList.remove('d-none');
+            chatPanel.classList.add('d-none');
+            participantsPanel.classList.add('d-none');
+            captionPanel.classList.add('d-none');
+            if (qaPanel) qaPanel.classList.add('d-none');
+        } else if (backgroundPanel.classList.contains('d-none')) {
+            backgroundPanel.classList.remove('d-none');
+            chatPanel.classList.add('d-none');
+            participantsPanel.classList.add('d-none');
+            captionPanel.classList.add('d-none');
+            if (qaPanel) qaPanel.classList.add('d-none');
+        } else {
+            sidebar.style.display = 'none';
+        }
+    });
+
+    // Close background panel
+    document.getElementById('close-background-panel')?.addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.style.display = 'none';
+    });
+
+    // Virtual Background change function
+    let originalVideoTrack = null; // Store original camera track
+    let sourceVideoForCanvas = null; // Hidden video element for canvas processing
+
+    window.changeBackground = async function (mode, imageUrl = null) {
+        console.log('[Meeting] Changing background to:', mode, imageUrl);
+
+        // Find local video element dynamically
+        const localVideoWrapper = document.querySelector(`[data-participant-id="${userId}"]`);
+        if (!localVideoWrapper) {
+            console.warn('[Meeting] Local video wrapper not found');
+            return;
+        }
+
+        const localVideo = localVideoWrapper.querySelector('video.participant-video');
+        if (!localVideo) {
+            console.warn('[Meeting] Local video element not found');
+            return;
+        }
+
+        console.log('[Meeting] Found local video element:', localVideo);
+
+        try {
+            // Get current video track
+            const currentVideoTrack = localStream?.getVideoTracks()[0];
+
+            if (mode === 'none') {
+                // Remove virtual background - restore original
+                console.log('[Meeting] Removing virtual background');
+
+                if (window.stopVirtualBackground) {
+                    window.stopVirtualBackground();
+                }
+
+                // Clean up source video
+                if (sourceVideoForCanvas) {
+                    sourceVideoForCanvas.srcObject = null;
+                    sourceVideoForCanvas.remove();
+                    sourceVideoForCanvas = null;
+                }
+
+                // If we have stored original track, restore it
+                if (originalVideoTrack && originalVideoTrack.readyState === 'live') {
+                    console.log('[Meeting] Restoring original video track');
+
+                    if (currentVideoTrack && currentVideoTrack !== originalVideoTrack) {
+                        localStream.removeTrack(currentVideoTrack);
+                        currentVideoTrack.stop();
+                    }
+
+                    localStream.addTrack(originalVideoTrack);
+
+                    // Create new stream with original track
+                    const restoredStream = new MediaStream();
+                    localStream.getTracks().forEach(track => restoredStream.addTrack(track));
+                    localVideo.srcObject = restoredStream;
+
+                    // Update peers
+                    peerConnections.forEach((pc, peerId) => {
+                        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+                        if (sender) {
+                            sender.replaceTrack(originalVideoTrack);
+                        }
+                    });
+
+                    originalVideoTrack = null;
+                    console.log('[Meeting] Original video restored');
+                } else {
+                    // Re-initialize camera
+                    await initializeMedia();
+                }
+
+                return;
+            }
+
+            // Apply virtual background
+            if (typeof window.applyVirtualBackground !== 'function') {
+                console.error('[Meeting] Virtual background not loaded');
+                return;
+            }
+
+            // Store original track if not already stored
+            if (!originalVideoTrack && currentVideoTrack) {
+                originalVideoTrack = currentVideoTrack;
+                console.log('[Meeting] Stored original video track');
+            }
+
+            // Create hidden video element for canvas processing if not exists
+            if (!sourceVideoForCanvas) {
+                sourceVideoForCanvas = document.createElement('video');
+                sourceVideoForCanvas.autoplay = true;
+                sourceVideoForCanvas.playsInline = true;
+                sourceVideoForCanvas.muted = true;
+                sourceVideoForCanvas.style.display = 'none';
+                document.body.appendChild(sourceVideoForCanvas);
+
+                // Feed original camera stream to hidden video
+                const sourceStream = new MediaStream([originalVideoTrack]);
+                sourceVideoForCanvas.srcObject = sourceStream;
+
+                await sourceVideoForCanvas.play();
+                console.log('[Meeting] Source video for canvas created');
+            }
+
+            // Apply virtual background effect to hidden video
+            const processedStream = await window.applyVirtualBackground(
+                sourceVideoForCanvas,
+                mode,
+                imageUrl
+            );
+
+            if (processedStream) {
+                const processedVideoTrack = processedStream.getVideoTracks()[0];
+
+                if (processedVideoTrack) {
+                    console.log('[Meeting] Got processed video track');
+
+                    // Remove current processed track if exists (but not original)
+                    if (currentVideoTrack && currentVideoTrack !== originalVideoTrack) {
+                        localStream.removeTrack(currentVideoTrack);
+                        currentVideoTrack.stop();
+                    }
+
+                    // Add new processed track to localStream
+                    localStream.addTrack(processedVideoTrack);
+
+                    // Create new stream with processed video + original audio
+                    const displayStream = new MediaStream();
+                    displayStream.addTrack(processedVideoTrack);
+                    localStream.getAudioTracks().forEach(track => displayStream.addTrack(track));
+
+                    // Update local video display with processed stream
+                    localVideo.srcObject = displayStream;
+
+                    // Update all peer connections
+                    peerConnections.forEach((pc, peerId) => {
+                        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+                        if (sender) {
+                            sender.replaceTrack(processedVideoTrack);
+                            console.log('[Meeting] Replaced video track for peer:', peerId);
+                        }
+                    });
+
+                    console.log('[Meeting] Virtual background applied successfully');
+                } else {
+                    console.warn('[Meeting] No processed video track');
+                }
+            } else {
+                console.warn('[Meeting] No processed stream returned');
+            }
+        } catch (error) {
+            console.error('[Meeting] Error applying virtual background:', error);
+        }
+    };
 
     // End meeting
     document.getElementById('end-meeting')?.addEventListener('click', () => {

@@ -5,6 +5,7 @@
  */
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 /**
  * Middleware: bắt buộc đăng nhập
@@ -27,6 +28,14 @@ const authenticate = async (req, res, next) => {
     }
 
     req.user = user;
+
+    // Đếm số thông báo chưa đọc
+    const unreadCount = await Notification.countDocuments({
+      user: user._id,
+      isRead: false
+    });
+    req.user.unreadNotifications = unreadCount;
+
     next();
   } catch (error) {
     return res.redirect('/auth/login');

@@ -179,6 +179,139 @@
                         <!-- Q&A content -->
                     </div>
                 </div>
+
+                <!-- Caption Panel -->
+                <div id="caption-panel" class="d-none d-flex flex-column h-100">
+                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-badge-cc"></i> Live Caption</h5>
+                        <button class="btn btn-sm btn-outline-secondary" id="close-caption-panel">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+
+                    <!-- Alert -->
+                    <div id="caption-alert" class="alert alert-info mx-3 mt-2 py-2 d-none" style="font-size: 0.85rem;">
+                    </div>
+
+                    <!-- Language selector -->
+                    <div class="px-3 pt-2 pb-3 border-bottom">
+                        <small class="text-muted d-block mb-2">Language:</small>
+                        <div class="btn-group btn-group-sm w-100" role="group">
+                            <button type="button" class="btn btn-outline-primary caption-lang-option active"
+                                data-lang="vi-VN">
+                                Tiếng Việt
+                            </button>
+                            <button type="button" class="btn btn-outline-primary caption-lang-option" data-lang="en-US">
+                                English
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live caption (interim results) -->
+                    <div class="px-3 py-2 border-bottom bg-light">
+                        <small class="text-muted d-block mb-1">Live:</small>
+                        <div id="live-caption-text" class="fw-bold text-primary"
+                            style="min-height: 24px; font-size: 0.95rem;"></div>
+                    </div>
+
+                    <!-- Caption history -->
+                    <div class="flex-grow-1 overflow-auto" style="max-height: 400px;">
+                        <div id="caption-history" class="p-3">
+                            <p class="text-muted text-center mt-3">Chưa có phụ đề</p>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="p-3 border-top">
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary flex-fill" id="clear-caption-history">
+                                <i class="bi bi-trash"></i> Clear
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary flex-fill" id="export-caption-history">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Virtual Background Panel -->
+                <div id="background-panel" class="d-none d-flex flex-column h-100">
+                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-image"></i> Virtual Background</h5>
+                        <button class="btn btn-sm btn-outline-secondary" id="close-background-panel">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+
+                    <!-- Alert -->
+                    <div id="background-alert" class="alert alert-info mx-3 mt-2 py-2 d-none"
+                        style="font-size: 0.85rem;">
+                    </div>
+
+                    <!-- Background modes -->
+                    <div class="px-3 pt-3 pb-2">
+                        <small class="text-muted d-block mb-2">Effect:</small>
+                        <div class="btn-group btn-group-sm w-100" role="group">
+                            <button type="button" class="btn btn-outline-primary active" id="bg-none">
+                                None
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="bg-blur">
+                                <i class="bi bi-droplet"></i> Blur
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Background images -->
+                    <div class="px-3 pt-2">
+                        <small class="text-muted d-block mb-2">Background Images:</small>
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <div class="bg-image-option border rounded p-1"
+                                    data-bg-url="https://images.unsplash.com/photo-1557683316-973673baf926?w=1920&h=1080&fit=crop"
+                                    style="cursor: pointer; aspect-ratio: 16/9; background: url('https://images.unsplash.com/photo-1557683316-973673baf926?w=400&h=225&fit=crop') center/cover;">
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="bg-image-option border rounded p-1"
+                                    data-bg-url="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920&h=1080&fit=crop"
+                                    style="cursor: pointer; aspect-ratio: 16/9; background: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&h=225&fit=crop') center/cover;">
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="bg-image-option border rounded p-1"
+                                    data-bg-url="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&h=1080&fit=crop"
+                                    style="cursor: pointer; aspect-ratio: 16/9; background: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=225&fit=crop') center/cover;">
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="bg-image-option border rounded p-1"
+                                    data-bg-url="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&h=1080&fit=crop"
+                                    style="cursor: pointer; aspect-ratio: 16/9; background: url('https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=225&fit=crop') center/cover;">
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="bg-image-option border rounded p-1"
+                                    data-bg-url="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920&h=1080&fit=crop"
+                                    style="cursor: pointer; aspect-ratio: 16/9; background: url('https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&h=225&fit=crop') center/cover;">
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="bg-image-option border rounded p-1"
+                                    data-bg-url="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1920&h=1080&fit=crop"
+                                    style="cursor: pointer; aspect-ratio: 16/9; background: url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&h=225&fit=crop') center/cover;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Info -->
+                    <div class="px-3 pt-3">
+                        <div class="alert alert-warning py-2" style="font-size: 0.85rem;">
+                            <i class="bi bi-info-circle"></i> Virtual background uses AI to detect your body. Works best
+                            with good lighting and a clear background.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -210,22 +343,27 @@
                     <button class="btn btn-sm btn-secondary" id="show-qa">
                         <i class="bi bi-question-circle"></i> Q&A
                     </button>
-                    <% if (isHost || isCoHost) { %>
-                        <button class="btn btn-sm btn-warning" id="create-breakout">
-                            <i class="bi bi-diagram-3"></i> Breakout Rooms
+                    <button class="btn btn-sm btn-secondary" id="toggle-caption" title="Live Caption">
+                        <i class="bi bi-badge-cc"></i>
+                    </button>
+                    <button class="btn btn-sm btn-secondary" id="toggle-background" title="Virtual Background">
+                        <i class="bi bi-image"></i>
+                    </button>
+                    <% if (isHost) { %>
+                        <button class="btn btn-sm btn-danger" id="end-meeting">
+                            <i class="bi bi-x-circle"></i> End Meeting
                         </button>
                         <% } %>
-                            <% if (isHost) { %>
-                                <button class="btn btn-sm btn-danger" id="end-meeting">
-                                    <i class="bi bi-x-circle"></i> End Meeting
-                                </button>
-                                <% } %>
         </div>
     </div>
 
     <!-- libs -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
+
+    <!-- TensorFlow.js and BodyPix for virtual background -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0/dist/body-pix.min.js"></script>
 
     <script>
         const meetingId = '<%= meeting._id %>';
@@ -242,7 +380,8 @@
     <script src="/js/webrtc.js"></script>
     <script src="/js/polls.js"></script>
     <script src="/js/qa.js"></script>
-    <script src="/js/breakout.js"></script>
+    <script src="/js/captions.js"></script>
+    <script src="/js/virtualBackground.js"></script>
 </body>
 
 </html>

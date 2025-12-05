@@ -120,7 +120,7 @@ const socketHandler = (io, socket) => {
     if (!targetId) {
       return;
     }
-    // targetId là socketId của người nhận; dùng io.to để gửi đúng socket thay vì broadcast theo room
+    // targetId là socketId của người nhận; dùng io.to để gửi đúng socket
     io.to(targetId).emit('offer', {
       offer,
       from: socket.id,
@@ -144,11 +144,10 @@ const socketHandler = (io, socket) => {
     if (!targetId) {
       return;
     }
-    // Gửi ICE candidate trực tiếp tới socket đích để tiếp tục kết nối P2P
+    // Gửi ICE candidate trực tiếp tới socket đích
     io.to(targetId).emit('ice-candidate', {
       candidate,
-      from: socket.id,
-      fromUserId: socket.userId
+      from: socket.id
     });
   });
 
@@ -325,31 +324,59 @@ const socketHandler = (io, socket) => {
     }
   });
 
-  // Breakout rooms - DEPRECATED: Use REST API endpoints in breakoutRoutes.js instead
-  socket.on('create-breakout', ({ meetingId, rooms }) => {
-    console.warn('[DEPRECATED] create-breakout socket event - Use POST /api/meeting/:meetingId/breakout instead');
-    io.to(meetingId).emit('breakout-created', { rooms });
-  });
-
-  socket.on('join-breakout', ({ meetingId, roomId }) => {
-    console.warn('[DEPRECATED] join-breakout socket event - Use POST /api/meeting/:meetingId/breakout/:roomId/join instead');
-    socket.leave(meetingId);
-    socket.join(`${meetingId}-breakout-${roomId}`);
-    socket.breakoutRoom = roomId;
-  });
-
-  socket.on('leave-breakout', ({ meetingId }) => {
-    console.warn('[DEPRECATED] leave-breakout socket event - Use POST /api/meeting/:meetingId/breakout/leave instead');
-    if (socket.breakoutRoom) {
-      socket.leave(`${meetingId}-breakout-${socket.breakoutRoom}`);
-      socket.join(meetingId);
-      socket.breakoutRoom = null;
-    }
-  });
-
   // Host controls
   socket.on('mute-user', ({ meetingId, targetUserId }) => {
     socket.to(meetingId).emit('user-muted', { userId: targetUserId });
+  });
+
+  socket.on('set-co-host', async ({ meetingId, targetUserId }) => {
+    try {
+      const meeting = await Meeting.findById(meetingId);
+      if (meeting) {
+        // Check if user is already co-host
+        const isAlreadyCoHost = meeting.coHosts?.some(
+          coHost => coHost.toString() === targetUserId
+        );
+
+        if (isAlreadyCoHost) {
+          // Remove co-host
+          meeting.coHosts = meeting.coHosts.filter(
+            coHost => coHost.toString() !== targetUserId
+          );
+          await meeting.save();
+          io.to(meetingId).emit('co-host-removed', { userId: targetUserId });
+        } else {
+          // Add co-host
+          if (!meeting.coHosts) meeting.coHosts = [];
+          meeting.coHosts.push(targetUserId);
+          await meeting.save();
+          io.to(meetingId).emit('co-host-added', { userId: targetUserId });
+        }
+      }
+    } catch (error) {
+      console.error('Error setting co-host:', error);
+    }
+  });
+
+  socket.on('remove-participant', async ({ meetingId, targetUserId }) => {
+    try {
+      // Emit to target user to leave
+      io.to(meetingId).emit('participant-removed', { userId: targetUserId });
+
+      // Update meeting participants
+      const meeting = await Meeting.findById(meetingId);
+      if (meeting) {
+        const participant = meeting.participants.find(
+          p => p.user.toString() === targetUserId
+        );
+        if (participant) {
+          participant.leftAt = new Date();
+          await meeting.save();
+        }
+      }
+    } catch (error) {
+      console.error('Error removing participant:', error);
+    }
   });
 
   socket.on('disable-chat', ({ meetingId }) => {
@@ -405,6 +432,19 @@ const socketHandler = (io, socket) => {
     if (!io.sockets.adapter.rooms.get(meetingId)) {
       whiteboardStates.delete(meetingId);
     }
+  });
+
+  /**
+   * Event: caption-text
+   * Gửi phụ đề (caption) đến các user khác trong meeting
+   */
+  socket.on('caption-text', ({ meetingId, userId, text, timestamp }) => {
+    // Broadcast caption đến tất cả users khác trong meeting
+    socket.to(meetingId).emit('caption-text', {
+      userId,
+      text,
+      timestamp
+    });
   });
 
   // Disconnect
