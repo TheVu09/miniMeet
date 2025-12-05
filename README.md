@@ -30,13 +30,12 @@
 - ✅ Emoji reactions
 - ✅ Polls (giáo viên tạo thăm dò ý kiến)
 - ✅ Q&A module (hỏi đáp trong meeting)
-- ✅ Breakout rooms (phòng nhỏ chia nhóm)
 - ✅ Host có thể tắt camera/mic người khác
 - ✅ Host có thể tắt chat, screen share
 - ✅ Attendance tracking (điểm danh tự động)
 - ✅ Preview modal (kiểm tra camera/mic trước khi join)
-
-- ✅ Preview modal (kiểm tra camera/mic trước khi join)
+- ✅ Live captions (phụ đề trực tiếp)
+- ✅ Virtual background (nền ảo - chưa implement đầy đủ)
 
 ### 📚 Learning Management System Features
 - ✅ **Quản lý lớp học (Classroom)**
@@ -58,12 +57,9 @@
   
 - ✅ **Hệ thống Quiz**
   - Tạo quiz với multiple choice, true/false
-  - Tự động chấm điểm
+  - Tự động chấm điểm (hỗ trợ cả index và text answer)
   - Giới hạn thời gian làm bài
-  - Anti-cheat module (phát hiện gian lận)
-    - Detect tab change (chuyển tab)
-    - Detect fullscreen exit (thoát fullscreen)
-    - Camera monitoring (giám sát qua camera)
+  - Hiển thị kết quả ngay lập tức
   
 - ✅ **Diễn đàn thảo luận (Forum)**
   - Tạo thread và bình luận
@@ -71,17 +67,16 @@
   - Like/unlike posts
   
 - ✅ **Thông báo (Notifications)**
-  - Thông báo lớp học sắp diễn ra
-  - Deadline bài tập
-  - Tài liệu mới được upload
-  - Quiz/homework đã được chấm điểm
+  - Thông báo homework sắp đến hạn (6 mốc: 24h, 1h, 30min, 10min, 5min, 1min)
+  - Thông báo homework quá hạn
+  - Cron job chạy mỗi phút để kiểm tra
+  - Badge hiển thị số thông báo chưa đọc
+  - Đánh dấu đã đọc/chưa đọc
   
 - ✅ **AI Placeholders** (sẵn sàng tích hợp AI)
   - Tự động tóm tắt bài học
   - Tự động tạo quiz từ nội dung
   - Tự động chấm và đánh giá bài tập
-  - Tạo summary meeting với action items
-
   - Tạo summary meeting với action items
 
 ## Tech Stack
@@ -108,14 +103,20 @@
 ```json
 {
   "express": "^4.18.2",
+  "ejs": "^3.1.9",
   "mongoose": "^7.5.0",
   "socket.io": "^4.6.1",
   "jsonwebtoken": "^9.0.2",
   "bcryptjs": "^2.4.3",
+  "cookie-parser": "^1.4.6",
+  "express-validator": "^7.0.1",
   "multer": "^1.4.5-lts.1",
+  "gridfs-stream": "^1.1.1",
+  "method-override": "^3.0.0",
+  "dotenv": "^16.3.1",
   "express-session": "^1.17.3",
   "connect-mongo": "^5.1.0",
-  "ejs": "^3.1.9"
+  "uuid": "^9.0.0"
 }
 ```
 
@@ -140,8 +141,7 @@ miniMeet/
 │   │   ├── materialController.js
 │   │   ├── notificationController.js
 │   │   ├── pollController.js
-│   │   ├── qaController.js
-│   │   └── breakoutController.js
+│   │   └── qaController.js
 │   ├── middleware/          # Custom middleware
 │   │   ├── auth.js          # Authentication middleware
 │   │   └── roleCheck.js     # Role-based access control
@@ -168,14 +168,14 @@ miniMeet/
 │   │   ├── materialRoutes.js
 │   │   ├── notificationRoutes.js
 │   │   ├── pollRoutes.js       # API routes cho polls
-│   │   ├── qaRoutes.js         # API routes cho Q&A
-│   │   └── breakoutRoutes.js   # API routes cho breakout rooms
+│   │   └── qaRoutes.js         # API routes cho Q&A
 │   ├── utils/               # Utility functions
-│   │   ├── socketHandler.js      # Socket.io event handlers
-│   │   ├── generateToken.js      # JWT token generation
-│   │   ├── generateMeetingCode.js # Random meeting code/link
-│   │   ├── antiCheat.js          # Anti-cheat utilities cho quiz
-│   │   └── aiPlaceholders.js     # AI placeholder functions
+│   │   ├── socketHandler.js           # Socket.io event handlers
+│   │   ├── generateToken.js           # JWT token generation
+│   │   ├── generateMeetingCode.js     # Random meeting code/link
+│   │   ├── antiCheat.js               # Anti-cheat utilities cho quiz
+│   │   ├── aiPlaceholders.js          # AI placeholder functions
+│   │   └── homeworkNotificationCron.js # Cron job kiểm tra deadline homework
 │   ├── views/               # EJS templates
 │   │   ├── layout.ejs       # Main layout
 │   │   ├── partials/       # Partial templates
@@ -195,7 +195,8 @@ miniMeet/
 │           ├── webrtc.js         # WebRTC utility functions
 │           ├── polls.js          # Poll UI và logic
 │           ├── qa.js             # Q&A UI và logic
-│           ├── breakout.js       # Breakout rooms UI
+│           ├── captions.js       # Live captions
+│           ├── virtualBackground.js # Virtual background (placeholder)
 │           └── videoLayoutManager.js # Video layout manager (không dùng)
 └── uploads/                # Uploaded files directory
     ├── homework/           # Homework submissions
@@ -305,9 +306,13 @@ Server sẽ chạy tại `http://localhost:3000`
 - **Raise Hand**: Giơ tay để thu hút sự chú ý
 - **Polls**: Host tạo thăm dò ý kiến
 - **Q&A**: Đặt câu hỏi và trả lời trong meeting
-- **Breakout Rooms**: Host tạo phòng nhỏ chia nhóm
+- **Live Captions**: Phụ đề trực tiếp
 
-- **Breakout Rooms**: Host tạo phòng nhỏ chia nhóm
+### 6. Thông báo Homework
+- Thông báo tự động được gửi ở các mốc: 24h, 1h, 30min, 10min, 5min, 1min trước deadline
+- Thông báo khi homework quá hạn
+- Badge hiển thị số thông báo chưa đọc trên navbar
+- Click vào thông báo để đánh dấu đã đọc
 
 ## API Routes
 
@@ -379,8 +384,11 @@ Server sẽ chạy tại `http://localhost:3000`
 - `POST /api/meeting/:meetingId/question` - Đặt câu hỏi
 - `POST /api/question/:questionId/answer` - Trả lời câu hỏi
 - `POST /api/question/:questionId/upvote` - Upvote câu hỏi
-- `POST /api/meeting/:meetingId/breakout` - Tạo breakout rooms
-- `POST /api/meeting/:meetingId/breakout/:roomId/join` - Join breakout room
+
+### Notification Routes
+- `GET /notification` - Danh sách thông báo
+- `POST /notification/:id/read` - Đánh dấu đã đọc
+- `POST /notification/read-all` - Đánh dấu tất cả đã đọc
 
 ## Socket.IO Events
 
@@ -405,8 +413,8 @@ Server sẽ chạy tại `http://localhost:3000`
 - `vote-poll` - Vote poll (API)
 - `ask-question` - Đặt câu hỏi (API)
 - `answer-question` - Trả lời câu hỏi (API)
-- `create-breakout` - Tạo breakout rooms (API)
-- `join-breakout` - Join breakout room (API)
+- `upvote-question` - Upvote câu hỏi
+- `caption-text` - Gửi phụ đề (live captions)
 
 ### Server → Client Events
 - `user-joined` - User tham gia meeting
@@ -431,8 +439,14 @@ Server sẽ chạy tại `http://localhost:3000`
 - `poll-updated` - Poll được cập nhật
 - `question-asked` - Câu hỏi mới
 - `question-answered` - Câu hỏi được trả lời
-
-- `question-answered` - Câu hỏi được trả lời
+- `user-muted` - User bị tắt mic
+- `co-host-added` - User được thêm làm co-host
+- `co-host-removed` - User bị xóa khỏi co-host
+- `participant-removed` - Participant bị kick
+- `meeting-ended` - Meeting kết thúc
+- `chat-disabled` / `chat-enabled` - Chat bị tắt/bật
+- `screen-share-disabled` / `screen-share-enabled` - Screen share bị tắt/bật
+- `caption-text` - Phụ đề mới (live captions)
 
 ## Phân quyền (Role-Based Access Control)
 
@@ -466,14 +480,14 @@ Tất cả models sử dụng Mongoose. Các models chính:
 - **Class**: Lớp học với teacher, students, materials, homeworks, quizzes, meetings
 - **Meeting**: Meeting session với host, participants, settings, whiteboard state
 - **Homework**: Bài tập với đề bài, submissions, grading
-- **Quiz**: Quiz với questions, attempts, auto-grading, anti-cheat tracking
+- **Quiz**: Quiz với questions, attempts, auto-grading (hỗ trợ cả correctAnswer dạng index và text)
 - **Material**: Tài liệu học tập với file metadata
 - **Chat**: Tin nhắn chat trong meeting
 - **Poll**: Polls trong meeting với options và votes
 - **Question**: Q&A questions với answers và upvotes
 - **Attendance**: Điểm danh tự động trong meetings
 - **Forum**: Bài viết thảo luận với comments và likes
-- **Notification**: Thông báo cho users
+- **Notification**: Thông báo cho users (homework deadline, overdue, etc.)
 
 ## Development
 
@@ -544,6 +558,16 @@ Tất cả models sử dụng Mongoose. Các models chính:
 - Kiểm tra questionCount bắt đầu từ 0 (không phải 1)
 - Verify JSON parsing của questions array
 - Kiểm tra Class.findByIdAndUpdate có push quiz._id không
+
+### Quiz chấm điểm sai
+- Kiểm tra correctAnswer trong database (text hay index)
+- Nếu teacher nhập text (như "a", "Option 1"), hệ thống tự động convert sang index
+- Student answer luôn là index (0, 1, 2...)
+
+### Thông báo không xuất hiện
+- Kiểm tra cron job đã chạy chưa (xem server logs)
+- Verify homework có dueDate đúng format
+- Kiểm tra students có trong class không
 
 ## Production Deployment
 
@@ -622,19 +646,19 @@ server {
 ## Known Issues & Limitations
 
 - Video grid layout không dùng `VideoLayoutManager` class, sử dụng CSS Grid thuần với thuật toán Google Meet
-- Anti-cheat module cho quiz chưa được tích hợp vào quiz view
+- Quiz tự động chấm điểm với logic phức tạp (hỗ trợ cả correctAnswer dạng text và index)
 - AI placeholders chỉ là mock functions, cần tích hợp API thực (OpenAI, Claude, etc.)
 - GridFS đã setup nhưng hiện tại dùng local filesystem cho file storage
 - Meeting recording chưa được implement (placeholder only)
-- Live captions và translation chưa được implement
-- Background blur/virtual background chưa được implement
+- Virtual background chỉ có placeholder, chưa implement đầy đủ
+- Anti-cheat module cho quiz đã có nhưng chưa được tích hợp vào quiz view
+- Breakout rooms đã bị xóa do vấn đề WebRTC phức tạp
 
 ## Future Enhancements
 
 - [ ] Tích hợp OpenAI/Claude API cho AI features
 - [ ] Implement meeting recording với MediaRecorder API
-- [ ] Background blur/virtual background với TensorFlow.js
-- [ ] Live captions với Web Speech API
+- [ ] Background blur/virtual background đầy đủ với TensorFlow.js
 - [ ] Push notifications với Service Workers
 - [ ] Mobile responsive improvements
 - [ ] Dark mode theme
@@ -642,6 +666,9 @@ server {
 - [ ] Calendar integration
 - [ ] Email notifications
 - [ ] Advanced analytics dashboard
+- [ ] Re-implement breakout rooms với WebRTC architecture tốt hơn
+- [ ] Tích hợp anti-cheat vào quiz view
+- [ ] Live translation cho captions
 
 ## License
 
