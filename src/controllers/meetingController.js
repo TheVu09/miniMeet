@@ -126,18 +126,28 @@ const getMeeting = async (req, res) => {
     const isCoHost = meeting.coHosts.some(ch => ch._id.toString() === req.user._id.toString());
     const isParticipant = meeting.participants.some(p => p.user._id.toString() === req.user._id.toString());
 
-    if (!isHost && !isCoHost && !isParticipant && meeting.requiresApproval) {
-      if (!meeting.pendingParticipants.some(p => p.user.toString() === req.user._id.toString())) {
-        meeting.pendingParticipants.push({ user: req.user._id });
-        await meeting.save();
+    // If meeting requires approval and user is NOT host/co-host
+    if (meeting.requiresApproval && !isHost && !isCoHost) {
+      // Check if already approved (in participants list)
+      const alreadyApproved = meeting.participants.some(p =>
+        p.user._id.toString() === req.user._id.toString()
+      );
+
+      if (!alreadyApproved) {
+        // Add to pending if not already there
+        if (!meeting.pendingParticipants.some(p => p.user.toString() === req.user._id.toString())) {
+          meeting.pendingParticipants.push({ user: req.user._id });
+          await meeting.save();
+        }
+        return res.render('meeting/pending', {
+          meeting,
+          user: req.user
+        });
       }
-      return res.render('meeting/pending', {
-        meeting,
-        user: req.user
-      });
     }
 
-    if (!isParticipant && !isHost) {
+    // Add to participants if not already there (for host/co-host or approved users)
+    if (!isParticipant && !isHost && !isCoHost) {
       meeting.participants.push({ user: req.user._id });
       await meeting.save();
     }
@@ -220,11 +230,23 @@ const approveParticipant = async (req, res) => {
     }
 
     const { userId } = req.body;
+
+    // Get user info to emit in socket event
+    const User = require('../models/User');
+    const user = await User.findById(userId);
+
     meeting.pendingParticipants = meeting.pendingParticipants.filter(
       p => p.user.toString() !== userId
     );
     meeting.participants.push({ user: userId });
     await meeting.save();
+
+    // Emit socket event to notify all participants
+    const io = req.app.get('io');
+    io.to(req.params.id).emit('participant-approved', {
+      userId,
+      user: { _id: user._id, name: user.name, email: user.email }
+    });
 
     res.json({ success: true });
   } catch (error) {
@@ -241,10 +263,22 @@ const denyParticipant = async (req, res) => {
     }
 
     const { userId } = req.body;
+
+    // Get user info to emit in socket event
+    const User = require('../models/User');
+    const user = await User.findById(userId);
+
     meeting.pendingParticipants = meeting.pendingParticipants.filter(
       p => p.user.toString() !== userId
     );
     await meeting.save();
+
+    // Emit socket event to notify the denied user
+    const io = req.app.get('io');
+    io.to(req.params.id).emit('participant-denied', {
+      userId,
+      user: { _id: user._id, name: user.name, email: user.email }
+    });
 
     res.json({ success: true });
   } catch (error) {

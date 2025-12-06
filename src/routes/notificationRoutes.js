@@ -11,4 +11,3 @@ router.post('/read-all', authenticate, notificationController.markAllAsRead);
 router.get('/test-cron', authenticate, notificationController.testCron);
 
 module.exports = router;
-

@@ -44,7 +44,7 @@ const createHomework = async (req, res) => {
 
     console.log('Homework created:', homework._id, 'for class:', homework.class);
 
-    // Add homework to class
+    // Thêm homework vào lớp
     const Class = require('../models/Class');
     await Class.findByIdAndUpdate(classId, {
       $push: { homeworks: homework._id }

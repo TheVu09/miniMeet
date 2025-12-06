@@ -15,6 +15,38 @@
 </head>
 
 <body>
+    <!-- Approval Request Modal (for host/co-host) -->
+    <div class="modal fade" id="approvalModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-person-raised-hand"></i> Join Request
+                    </h5>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="mb-3">
+                        <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center"
+                            style="width: 80px; height: 80px; font-size: 2.5rem;">
+                            <span id="approval-user-initial">?</span>
+                        </div>
+                    </div>
+                    <h4 id="approval-user-name">Someone</h4>
+                    <p class="text-muted">wants to join this meeting</p>
+                    <small class="text-muted" id="approval-user-email"></small>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-danger btn-lg px-4" id="deny-join-btn">
+                        <i class="bi bi-x-circle"></i> Deny
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg px-4" id="approve-join-btn">
+                        <i class="bi bi-check-circle"></i> Approve
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Preview Modal (shown before joining) -->
     <div class="modal fade" id="previewModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -162,6 +194,20 @@
                     <div class="p-3 border-bottom">
                         <h5><i class="bi bi-people"></i> Participants</h5>
                     </div>
+
+                    <!-- Pending Participants Section (Only visible to host/co-host) -->
+                    <div id="pending-participants-section" class="d-none border-bottom">
+                        <div class="px-3 py-2 bg-light">
+                            <h6 class="mb-0 text-warning">
+                                <i class="bi bi-hourglass-split"></i> Waiting for Approval
+                                (<span id="pending-count">0</span>)
+                            </h6>
+                        </div>
+                        <div id="pending-participants-list" class="p-2">
+                            <!-- Pending participants will appear here -->
+                        </div>
+                    </div>
+
                     <div id="participants-list" class="flex-grow-1 p-3 overflow-auto">
                         <!-- Participants will appear here -->
                     </div>
@@ -377,6 +423,7 @@
 
     <!-- keep other app scripts (webrtc, meeting logic) loaded after) -->
     <script src="/js/meeting.js"></script>
+    <script src="/js/participants.js"></script>
     <script src="/js/webrtc.js"></script>
     <script src="/js/polls.js"></script>
     <script src="/js/qa.js"></script>

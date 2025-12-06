@@ -447,6 +447,76 @@ const socketHandler = (io, socket) => {
     });
   });
 
+  /**
+   * Event: request-approval
+   * User in pending state requests approval from host
+   */
+  socket.on('request-approval', async ({ meetingId, user }) => {
+    console.log(`📨 request-approval received from ${user.name} for meeting ${meetingId}`);
+    try {
+      const meeting = await Meeting.findById(meetingId);
+      if (meeting) {
+        console.log(`✅ Meeting found, broadcasting participant-requesting to room ${meetingId}`);
+
+        // Get all sockets in room
+        const socketsInRoom = await io.in(meetingId).fetchSockets();
+        console.log(`   Room has ${socketsInRoom.length} socket(s) connected`);
+
+        // Broadcast to all in room EXCEPT sender (host will receive and show modal)
+        io.to(meetingId).except(socket.id).emit('participant-requesting', {
+          user: user,
+          requestedAt: new Date()
+        });
+        console.log(`✅ Broadcasted participant-requesting for user ${user.name} to ${socketsInRoom.length - 1} other socket(s)`);
+      } else {
+        console.error(`❌ Meeting ${meetingId} not found`);
+      }
+    } catch (error) {
+      console.error('Error in request-approval:', error);
+    }
+  });
+
+  /**
+   * Event: get-participants
+   * Get current participants list with populated user info
+   */
+  socket.on('get-participants', async ({ meetingId }) => {
+    try {
+      const meeting = await Meeting.findById(meetingId).populate('participants.user', 'name email');
+      if (meeting) {
+        socket.emit('participants-list', {
+          participants: meeting.participants
+        });
+      }
+    } catch (error) {
+      console.error('Error getting participants:', error);
+    }
+  });
+
+  /**
+   * Event: get-pending-participants
+   * Get pending participants list (host/co-host only)
+   */
+  socket.on('get-pending-participants', async ({ meetingId }) => {
+    try {
+      const meeting = await Meeting.findById(meetingId).populate('pendingParticipants.user', 'name email');
+      if (meeting) {
+        const currentUserId = socket.userId?.toString();
+        const isHost = meeting.host.toString() === currentUserId;
+        const isCoHost = meeting.coHosts.some(ch => ch.toString() === currentUserId);
+
+        // Only host and co-hosts can see pending participants
+        if (isHost || isCoHost) {
+          socket.emit('pending-participants-list', {
+            pendingParticipants: meeting.pendingParticipants
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error getting pending participants:', error);
+    }
+  });
+
   // Disconnect
   socket.on('disconnect', async () => {
     if (socket.meetingId && socket.userId) {

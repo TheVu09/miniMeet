@@ -12,4 +12,3 @@ router.post('/:id/comment', authenticate, forumController.addComment);
 router.post('/:id/like', authenticate, forumController.likePost);
 
 module.exports = router;
-

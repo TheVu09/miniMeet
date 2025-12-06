@@ -14,4 +14,3 @@ router.post('/:id/add-student', authenticate, classroomController.addStudent);
 router.post('/:id/remove-student', authenticate, classroomController.removeStudent);
 
 module.exports = router;
-
