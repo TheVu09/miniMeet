@@ -11,9 +11,11 @@ const Chat = require('../models/Chat');
 const Poll = require('../models/Poll');
 const Question = require('../models/Question');
 const Attendance = require('../models/Attendance');
+const User = require('../models/User');
 
 // Lưu trạng thái whiteboard trong memory (không lưu vào DB)
 const whiteboardStates = new Map();
+
 
 const createStrokeId = () => `stroke_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
@@ -43,21 +45,41 @@ const socketHandler = (io, socket) => {
     // Lấy tất cả sockets trong room này (bao gồm cả socket hiện tại)
     const socketsInRoom = await io.in(meetingId).fetchSockets();
     const socketIdMap = new Map();
-    const allParticipants = [];
+    const userIds = [];
 
     socketsInRoom.forEach(s => {
       if (s.userId) {
         const uid = s.userId.toString();
         socketIdMap.set(uid, s.id);
-        allParticipants.push({
-          userId: uid,
-          socketId: s.id
-        });
+        userIds.push(uid);
       }
     });
 
+    // Lấy thông tin user từ DB để có tên
+    const users = await User.find({ _id: { $in: userIds } }).select('name email');
+    const userInfoMap = new Map();
+    users.forEach(u => {
+      userInfoMap.set(u._id.toString(), { name: u.name, email: u.email });
+    });
+
+    const allParticipants = Array.from(socketIdMap.entries()).map(([uid, socketId]) => {
+      const userInfo = userInfoMap.get(uid) || {};
+      return {
+        userId: uid,
+        socketId: socketId,
+        name: userInfo.name || `User ${uid}`,
+        email: userInfo.email
+      };
+    });
+
     // Notify others về user mới (gửi cả userId và socketId)
-    socket.to(meetingId).emit('user-joined', { userId, socketId: socket.id });
+    const currentUserInfo = userInfoMap.get(userId.toString()) || {};
+    socket.to(meetingId).emit('user-joined', {
+      userId,
+      socketId: socket.id,
+      name: currentUserInfo.name || `User ${userId}`,
+      email: currentUserInfo.email
+    });
 
     // Gửi danh sách tất cả participants hiện có (bao gồm cả những người đang online) cho user mới
     const meeting = await Meeting.findById(meetingId);
@@ -66,6 +88,19 @@ const socketHandler = (io, socket) => {
       const isHost = meeting.host.toString() === currentUserId;
       const isCoHost = meeting.coHosts.some(ch => ch.toString() === currentUserId);
       socket.canUseWhiteboard = isHost || isCoHost;
+
+      // Lấy tất cả userIds từ participants trong DB
+      const allUserIds = new Set(userIds);
+      meeting.participants.forEach(p => {
+        allUserIds.add(p.user.toString());
+      });
+
+      // Lấy thông tin tất cả users (cả online và offline)
+      const allUsers = await User.find({ _id: { $in: Array.from(allUserIds) } }).select('name email');
+      const completeUserInfoMap = new Map();
+      allUsers.forEach(u => {
+        completeUserInfoMap.set(u._id.toString(), { name: u.name, email: u.email });
+      });
 
       // Kết hợp participants từ DB và sockets đang online
       const participantsMap = new Map();
@@ -78,11 +113,14 @@ const socketHandler = (io, socket) => {
       // Thêm từ DB nếu chưa có
       meeting.participants.forEach(p => {
         const uid = p.user.toString();
+        const userInfo = completeUserInfoMap.get(uid) || {};
         if (!participantsMap.has(uid)) {
           participantsMap.set(uid, {
             userId: uid,
             joinedAt: p.joinedAt,
-            socketId: socketIdMap.get(uid) || null
+            socketId: socketIdMap.get(uid) || null,
+            name: userInfo.name || `User ${uid}`,
+            email: userInfo.email
           });
         } else {
           // Cập nhật joinedAt từ DB
@@ -95,9 +133,12 @@ const socketHandler = (io, socket) => {
       });
 
       // Gửi thông tin về user mới cho tất cả users hiện có (bao gồm cả socketId)
+      const newUserInfo = completeUserInfoMap.get(userId.toString()) || {};
       socket.to(meetingId).emit('new-participant-info', {
         userId,
-        socketId: socket.id
+        socketId: socket.id,
+        name: newUserInfo.name || `User ${userId}`,
+        email: newUserInfo.email
       });
 
       // Gửi trạng thái whiteboard hiện tại cho user mới
@@ -556,4 +597,3 @@ const socketHandler = (io, socket) => {
 };
 
 module.exports = socketHandler;
-

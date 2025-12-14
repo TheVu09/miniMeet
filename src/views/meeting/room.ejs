@@ -9,7 +9,10 @@
     </title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css"
+        integrity="sha512-dPXYcDub/aeb08c63jRq/k6GaKccl256JQy/AnOq7CAnEZ9FzSL9wSbcZkMp4R26vBsMLFYH4kQ67/bbV8XaCQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="/css/meeting.css" />
 </head>
@@ -241,7 +244,7 @@
 
                     <!-- Language selector -->
                     <div class="px-3 pt-2 pb-3 border-bottom">
-                        <small class="text-muted d-block mb-2">Language:</small>
+                        <small class="text-muted d-block mb-2">Speech Recognition:</small>
                         <div class="btn-group btn-group-sm w-100" role="group">
                             <button type="button" class="btn btn-outline-primary caption-lang-option active"
                                 data-lang="vi-VN">
@@ -250,6 +253,29 @@
                             <button type="button" class="btn btn-outline-primary caption-lang-option" data-lang="en-US">
                                 English
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Translation settings -->
+                    <div class="px-3 pt-2 pb-3 border-bottom">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="enable-translation">
+                            <label class="form-check-label" for="enable-translation">
+                                <small>Enable Auto Translation</small>
+                            </label>
+                        </div>
+                        <div id="translation-lang-group" class="d-none">
+                            <small class="text-muted d-block mb-2">Translate to:</small>
+                            <select class="form-select form-select-sm" id="translation-target-lang">
+                                <option value="vi">Tiếng Việt</option>
+                                <option value="en">English</option>
+                                <option value="zh-CN">中文 (Chinese)</option>
+                                <option value="ja">日本語 (Japanese)</option>
+                                <option value="ko">한국어 (Korean)</option>
+                                <option value="fr">Français (French)</option>
+                                <option value="de">Deutsch (German)</option>
+                                <option value="es">Español (Spanish)</option>
+                            </select>
                         </div>
                     </div>
 
@@ -377,8 +403,8 @@
                     <i class="bi bi-pencil-square"></i>
                 </button>
                 <% } %>
-                    <button class="btn btn-sm btn-secondary" id="raise-hand">
-                        <i class="bi bi-hand-raised"></i>
+                    <button class="btn btn-sm btn-secondary" id="raise-hand" title="Raise Hand">
+                        ✋🏻
                     </button>
                     <button class="btn btn-sm btn-secondary" id="show-reactions">
                         <i class="bi bi-emoji-smile"></i>
@@ -414,6 +440,7 @@
     <script>
         const meetingId = '<%= meeting._id %>';
         const userId = '<%= user._id %>';
+        const userName = '<%= user.name || "You" %>';
         const isHost = <%= isHost %>;
         const isCoHost = <%= isCoHost %>;
     </script>
