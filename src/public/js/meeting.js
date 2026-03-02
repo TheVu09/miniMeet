@@ -14,8 +14,8 @@ const socket = io();
 
 // Biến quản lý media streams và connections
 let localStream = null; //camera, mic
-let remoteStreams = new Map(); //key:userId, value: MediaStream
-let peerConnections = new Map(); // key: userId - 1u-1con - ICE, SDP, track
+let remoteStreams = new Map(); // Map userId -> MediaStream
+let peerConnections = new Map(); // // Map userId -> RTCPeerConnection
 
 //Mapping user - socket
 let userIdToSocketId = new Map(); // Map userId -> socketId
@@ -800,8 +800,8 @@ async function createPeerConnection(targetUserId, isIncomingOffer = false) {
                     'turn:a.relay.metered.ca:443',
                     'turn:a.relay.metered.ca:443?transport=tcp'
                 ],
-                username: 'b8e0a5f07ef3e4f93f8cf7e7',
-                credential: 'HdO5Zk5+z9MR0vRe'
+                // username: 'b8e0a5f07ef3e4f93f8cf7e7',
+                // credential: 'HdO5Zk5+z9MR0vRe'
             },
 
             // OpenRelay backup
@@ -810,8 +810,8 @@ async function createPeerConnection(targetUserId, isIncomingOffer = false) {
                     'turn:openrelay.metered.ca:80',
                     'turn:openrelay.metered.ca:443'
                 ],
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
+                // username: 'openrelayproject',
+                // credential: 'openrelayproject'
             }
         ],
         iceTransportPolicy: 'all', // LAN(host)->STUN(NAT)->TURN
@@ -1185,7 +1185,7 @@ async function stopScreenShare(options = { emitEvent: true }) {
     if (screenShareOwnerId === userId) {
         screenShareOwnerId = null;
     }
-    syncVideoLayout(); 
+    syncVideoLayout();
 
     if (options?.emitEvent) {
         socket.emit('stop-screen-share', { meetingId });
